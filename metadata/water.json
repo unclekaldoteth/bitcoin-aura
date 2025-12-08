@@ -1,0 +1,12 @@
+{
+  "name": "Bitcoin Aura - Water Flow",
+  "description": "Balanced and fluid; you know when to hold and when to spend.",
+  "image": "https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/water.png",
+  "attributes": [
+    { "trait_type": "Aura", "value": "WATER FLOW" },
+    { "trait_type": "Element", "value": "Water" },
+    { "trait_type": "Personality", "value": "Balanced" },
+    { "trait_type": "Tempo", "value": "Measured" },
+    { "trait_type": "Collection", "value": "Bitcoin Aura" }
+  ]
+}

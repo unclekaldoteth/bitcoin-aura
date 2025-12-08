@@ -1,0 +1,25 @@
+---
+id: 0
+name: Mainnet deployment
+network: mainnet
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: nft-trait
+            expected-sender: SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T
+            cost: 4160
+            path: contracts/nft-trait.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: aura-nft
+            expected-sender: SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T
+            cost: 26510
+            path: contracts/aura-nft.clar
+            anchor-block-only: true
+            clarity-version: 4
+      epoch: "3.3"

@@ -1,0 +1,10 @@
+{
+  "name": "Bitcoin Aura Collection",
+  "description": "Dynamic aura NFTs determined by your Bitcoin on-chain activity. Each mint assigns one of three elements: Fire Trader, Water Flow, or Stone Hodler.",
+  "image": "https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/collection2.png",
+  "external_url": "https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/metadata/",
+  "attributes": [
+    { "trait_type": "Collection", "value": "Bitcoin Aura" },
+    { "trait_type": "Element Options", "value": "Fire Trader | Water Flow | Stone Hodler" }
+  ]
+}

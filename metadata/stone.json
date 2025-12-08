@@ -1,0 +1,12 @@
+{
+  "name": "Bitcoin Aura - Stone Hodler",
+  "description": "Unshakable patience; diamond hands through any market.",
+  "image": "https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/stone.png",
+  "attributes": [
+    { "trait_type": "Aura", "value": "STONE HODLER" },
+    { "trait_type": "Element", "value": "Stone" },
+    { "trait_type": "Personality", "value": "Patient" },
+    { "trait_type": "Tempo", "value": "Long-Term" },
+    { "trait_type": "Collection", "value": "Bitcoin Aura" }
+  ]
+}

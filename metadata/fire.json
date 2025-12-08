@@ -1,0 +1,12 @@
+{
+  "name": "Bitcoin Aura - Fire Trader",
+  "description": "Hyperactive on-chain energy; gas fees don’t slow you down.",
+  "image": "https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/fire.png", 
+  "attributes": [
+    { "trait_type": "Aura", "value": "FIRE TRADER" },
+    { "trait_type": "Element", "value": "Fire" },
+    { "trait_type": "Personality", "value": "Hyperactive" },
+    { "trait_type": "Tempo", "value": "High Frequency" },
+    { "trait_type": "Collection", "value": "Bitcoin Aura" }
+  ]
+}
