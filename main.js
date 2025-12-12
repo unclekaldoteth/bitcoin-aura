@@ -37,6 +37,8 @@ const elements = {
     connectBtn: document.getElementById("connectWalletBtn"),
     walletStatus: document.getElementById("walletStatus"),
     statusChip: document.querySelector(".status-chip"),
+    heroImage: document.getElementById("heroImage"),
+    heroCaption: document.getElementById("heroCaption"),
     scanSection: document.getElementById("scanSection"),
     btcAddress: document.getElementById("btcAddress"),
     scanButton: document.getElementById("scanButton"),
@@ -225,18 +227,24 @@ async function fetchAddressTxCount(address) {
     }
 
     const sources = [
-        // Prefer CORS-friendly proxies first for production
-        {
-            url: `https://cors.isomorphic-git.org/https://mempool.space/api/address/${encoded}`,
-            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
-        },
-        {
-            url: `https://cors.isomorphic-git.org/https://blockstream.info/api/address/${encoded}`,
-            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
-        },
+        // Production-safe sources (mempool is region-blocked for some users)
         {
             url: `https://blockstream.info/api/address/${encoded}`,
-            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
+            parser: (j) =>
+                (j.chain_stats?.tx_count || 0) +
+                (j.mempool_stats?.tx_count || 0),
+        },
+        {
+            url: `https://api.blockcypher.com/v1/btc/main/addrs/${encoded}`,
+            parser: (j) =>
+                (typeof j.n_tx === "number" ? j.n_tx : 0) +
+                (typeof j.unconfirmed_n_tx === "number"
+                    ? j.unconfirmed_n_tx
+                    : 0),
+        },
+        {
+            url: `https://blockchain.info/rawaddr/${encoded}?cors=true`,
+            parser: (j) => (typeof j.n_tx === "number" ? j.n_tx : 0),
         },
         ...(isDev
             ? [
@@ -248,16 +256,6 @@ async function fetchAddressTxCount(address) {
                   },
               ]
             : []),
-        {
-            url: `https://api.blockcypher.com/v1/btc/main/addrs/${encoded}`,
-            parser: (j) =>
-                (typeof j.n_tx === "number" ? j.n_tx : 0) +
-                (typeof j.unconfirmed_n_tx === "number" ? j.unconfirmed_n_tx : 0),
-        },
-        {
-            url: `https://blockchain.info/rawaddr/${encoded}?cors=true`,
-            parser: (j) => (typeof j.n_tx === "number" ? j.n_tx : 0),
-        },
     ];
 
     for (const entry of sources) {
