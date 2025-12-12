@@ -104,29 +104,29 @@ function updateWalletUI(autoScroll = false) {
     }
 }
 
+async function handleConnectClick() {
+    console.log("🖱️ Connect button clicked");
+    if (isConnected()) {
+        disconnect();
+        updateWalletUI();
+        return;
+    }
+    try {
+        await connect({
+            appDetails: {
+                name: "Bitcoin Aura",
+                icon: window.location.origin + "/img/collection2.png",
+            },
+            redirectTo: window.location.href,
+        });
+        updateWalletUI(true);
+    } catch (err) {
+        console.error("Connect failed", err);
+    }
+}
+
 if (elements.connectBtn) {
-    elements.connectBtn.addEventListener("click", () => {
-        console.log("🖱️ Connect button clicked");
-        if (isConnected()) {
-            // New disconnect method
-            disconnect();
-            updateWalletUI();
-        } else {
-            // New connect method (replaces showConnect)
-            connect({
-                appDetails: {
-                    name: "Bitcoin Aura",
-                    icon: window.location.origin + "/img/collection2.png",
-                },
-                onFinish: () => {
-                    console.log("🔐 Auth finished");
-                    updateWalletUI(true);
-                    scrollToScan();
-                },
-                // No userSession needed here anymore
-            });
-        }
-    });
+    elements.connectBtn.addEventListener("click", handleConnectClick);
 }
 
 // --- SCAN AURA LOGIC (Unchanged) ---
@@ -367,5 +367,6 @@ if (elements.connectBtn) {
     });
 }
 
-// Initialize UI
-updateWalletUI();
+// Initialize UI (auto-scroll if already connected, e.g., after wallet redirect)
+const alreadyConnected = isConnected();
+updateWalletUI(alreadyConnected);
