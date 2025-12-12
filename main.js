@@ -118,7 +118,12 @@ async function handleConnectClick() {
                 icon: window.location.origin + "/img/collection2.png",
             },
             redirectTo: window.location.href,
+            onFinish: () => {
+                // Called when the wallet returns control (no manual refresh needed)
+                updateWalletUI(true);
+            },
         });
+        // Fallback in case onFinish does not fire on some wallets
         updateWalletUI(true);
     } catch (err) {
         console.error("Connect failed", err);
@@ -370,3 +375,7 @@ if (elements.connectBtn) {
 // Initialize UI (auto-scroll if already connected, e.g., after wallet redirect)
 const alreadyConnected = isConnected();
 updateWalletUI(alreadyConnected);
+// If the user comes back from wallet and focus returns, re-evaluate connection state
+window.addEventListener("focus", () => {
+    if (isConnected()) updateWalletUI(true);
+});
