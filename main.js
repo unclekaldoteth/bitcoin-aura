@@ -133,10 +133,8 @@ async function scanAura() {
     elements.txStatus.textContent = "";
 
     try {
-        const response = await fetch(`https://mempool.space/api/address/${address}`);
-        if (!response.ok) throw new Error("Failed to fetch data (Check Address)");
+        const data = await fetchAddressData(address);
 
-        const data = await response.json();
         const totalTx = data.chain_stats.tx_count + data.mempool_stats.tx_count;
 
         let auraType = "";
@@ -187,8 +185,45 @@ async function scanAura() {
     } catch (error) {
         console.error(error);
         elements.loading.style.display = "none";
-        alert("Error: " + error.message);
+        alert("Error: " + error.message + ". API might be unreachable; try again.");
     }
+}
+
+async function fetchAddressData(address) {
+    const encoded = encodeURIComponent(address);
+    const controllers = [];
+
+    const attempt = async (url) => {
+        const controller = new AbortController();
+        controllers.push(controller);
+        const timer = setTimeout(() => controller.abort(), 8000);
+        try {
+            const res = await fetch(url, { signal: controller.signal, mode: "cors" });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            clearTimeout(timer);
+            return json;
+        } finally {
+            clearTimeout(timer);
+        }
+    };
+
+    // Try mempool.space (mainnet), fallback to blockstream.info
+    const urls = [
+        `https://mempool.space/api/address/${encoded}`,
+        `https://blockstream.info/api/address/${encoded}`,
+    ];
+
+    let lastErr;
+    for (const url of urls) {
+        try {
+            return await attempt(url);
+        } catch (err) {
+            lastErr = err;
+            console.warn("Fetch failed on", url, err);
+        }
+    }
+    throw new Error(`Failed to fetch address data (${lastErr?.message || "unknown error"})`);
 }
 
 if (elements.scanButton) {
