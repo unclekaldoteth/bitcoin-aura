@@ -202,6 +202,15 @@ async function scanAura() {
 async function fetchAddressTxCount(address) {
     const encoded = encodeURIComponent(address);
     const sources = [
+        // Prefer CORS-friendly proxies first for production
+        {
+            url: `https://cors.isomorphic-git.org/https://mempool.space/api/address/${encoded}`,
+            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
+        },
+        {
+            url: `https://cors.isomorphic-git.org/https://blockstream.info/api/address/${encoded}`,
+            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
+        },
         {
             url: `https://blockstream.info/api/address/${encoded}`,
             parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
@@ -220,45 +229,32 @@ async function fetchAddressTxCount(address) {
             url: `https://blockchain.info/rawaddr/${encoded}?cors=true`,
             parser: (j) => (typeof j.n_tx === "number" ? j.n_tx : 0),
         },
-        // CORS proxy fallbacks
-        {
-            url: `https://cors.isomorphic-git.org/https://mempool.space/api/address/${encoded}`,
-            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
-        },
-        {
-            url: `https://cors.isomorphic-git.org/https://blockstream.info/api/address/${encoded}`,
-            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
-        },
     ];
 
-    const attempts = sources.map((entry) => {
+    for (const entry of sources) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 6000);
-        return fetch(entry.url, {
-            signal: controller.signal,
-            mode: "cors",
-            headers: { Accept: "application/json" },
-            cache: "no-store",
-        })
-            .then((res) => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.json();
-            })
-            .then((json) => {
-                const total = entry.parser(json);
-                if (typeof total !== "number" || Number.isNaN(total)) {
-                    throw new Error("Invalid response");
-                }
-                return total;
-            })
-            .finally(() => clearTimeout(timer));
-    });
-
-    try {
-        return await Promise.any(attempts);
-    } catch (err) {
-        throw new Error("Failed to fetch address data (all sources failed)");
+        try {
+            const res = await fetch(entry.url, {
+                signal: controller.signal,
+                mode: "cors",
+                headers: { Accept: "application/json" },
+                cache: "no-store",
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            const total = entry.parser(json);
+            clearTimeout(timer);
+            if (typeof total !== "number" || Number.isNaN(total)) {
+                throw new Error("Invalid response");
+            }
+            return total;
+        } catch (err) {
+            clearTimeout(timer);
+            console.warn("Fetch failed on", entry.url, err);
+        }
     }
+    throw new Error("Failed to fetch address data (all sources failed)");
 }
 
 if (elements.scanButton) {
