@@ -201,6 +201,25 @@ async function scanAura() {
 
 async function fetchAddressTxCount(address) {
     const encoded = encodeURIComponent(address);
+
+    // 1) Try same-origin serverless proxy first (works on Vercel prod)
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(`/api/txcount?address=${encoded}`, {
+            signal: controller.signal,
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+        });
+        clearTimeout(timer);
+        if (res.ok) {
+            const json = await res.json();
+            if (typeof json.totalTx === "number") return json.totalTx;
+        }
+    } catch (err) {
+        console.warn("Proxy /api/txcount failed, falling back to client fetch", err);
+    }
+
     const sources = [
         // Prefer CORS-friendly proxies first for production
         {
