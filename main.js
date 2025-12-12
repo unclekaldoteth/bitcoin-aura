@@ -142,7 +142,7 @@ async function scanAura() {
 
         if (totalTx === 0) {
             auraType = "BUY YOUR FIRST BTC";
-            imgFile = "https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/collection2.png";
+            imgFile = "";
             description = "You have no on-chain activity yet. Start with your first Bitcoin transaction.";
             color = "#f7931a";
             currentMetadataUri = METADATA_URLS.stone;
@@ -170,15 +170,27 @@ async function scanAura() {
 
         elements.auraTitle.innerText = auraType;
         elements.auraTitle.style.color = color;
-        elements.cardImage.src = imgFile;
+        if (imgFile) {
+            elements.cardImage.src = imgFile;
+            elements.cardImage.style.display = "block";
+            if (elements.heroImage) elements.heroImage.style.display = "block";
+        } else {
+            elements.cardImage.style.display = "none";
+            if (elements.heroImage) elements.heroImage.style.display = "none";
+        }
         elements.txData.innerText = `Total On-Chain Transactions: ${totalTx}`;
         elements.descData.innerText = description;
 
         elements.loading.style.display = "none";
         elements.resultArea.style.display = "block";
         if (elements.mintBtn) {
-            elements.mintBtn.disabled = false;
-            elements.mintBtn.textContent = "MINT TO STACKS";
+            if (totalTx === 0) {
+                elements.mintBtn.style.display = "none";
+            } else {
+                elements.mintBtn.style.display = "block";
+                elements.mintBtn.disabled = false;
+                elements.mintBtn.textContent = "MINT TO STACKS";
+            }
         }
     } catch (error) {
         console.error(error);
@@ -196,7 +208,12 @@ async function fetchAddressTxCount(address) {
         controllers.push(controller);
         const timer = setTimeout(() => controller.abort(), 8000);
         try {
-            const res = await fetch(entry.url, { signal: controller.signal, mode: "cors" });
+            const res = await fetch(entry.url, {
+                signal: controller.signal,
+                mode: "cors",
+                headers: { Accept: "application/json" },
+                cache: "no-store",
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             clearTimeout(timer);
@@ -221,11 +238,18 @@ async function fetchAddressTxCount(address) {
         },
         {
             url: `https://api.blockcypher.com/v1/btc/main/addrs/${encoded}`,
-            parser: (j) => (typeof j.n_tx === "number" ? j.n_tx : 0) + (typeof j.unconfirmed_n_tx === "number" ? j.unconfirmed_n_tx : 0),
+            parser: (j) =>
+                (typeof j.n_tx === "number" ? j.n_tx : 0) +
+                (typeof j.unconfirmed_n_tx === "number" ? j.unconfirmed_n_tx : 0),
         },
         {
             url: `https://blockchain.info/rawaddr/${encoded}?cors=true`,
             parser: (j) => (typeof j.n_tx === "number" ? j.n_tx : 0),
+        },
+        // Last-resort CORS proxy for mempool
+        {
+            url: `https://cors.isomorphic-git.org/https://mempool.space/api/address/${encoded}`,
+            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
         },
     ];
 
