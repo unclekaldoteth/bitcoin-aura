@@ -28,6 +28,9 @@
             border-radius: 15px;
             background: #1a1a1f;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         input {
@@ -77,19 +80,34 @@
         #result-area {
             margin-top: 30px;
             display: none; /* Hidden before scan */
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            text-align: center;
         }
 
         .card-img {
-            width: 300px;
+            display: block;
+            width: min(90%, 420px);
+            height: auto;
+            margin: 0 auto;
             border-radius: 10px;
             border: 4px solid white;
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        #mintBtn {
+            display: block;
+            margin: 22px auto 0;
+            width: min(90%, 360px);
         }
 
         .stats {
             margin-top: 15px;
             color: #aaa;
             font-size: 14px;
+            text-align: center;
         }
 
         #loading {
@@ -197,7 +215,7 @@
             }
         }
     </style>
-  <script type="module" crossorigin src="/assets/index-CpGMRclw.js"></script>
+  <script type="module" crossorigin src="/assets/index-Dfwlf9ym.js"></script>
 </head>
 <body>
 
@@ -228,7 +246,7 @@
 
         <p id="loading">🕵️ Pinging the Bitcoin satellites...</p>
 
-        <div id="result-area" style="display: none;">
+        <div id="result-area">
             <h2 id="auraTitle">FIRE TRADER</h2>
             <img src="" id="cardImage" class="card-img" alt="Aura Card">
             
