@@ -53,7 +53,14 @@ const elements = {
 };
 
 // --- 2. NEW AUTH LOGIC (No more UserSession) ---
-function updateWalletUI() {
+function scrollToScan() {
+    if (elements.scanSection) {
+        elements.scanSection.style.display = "block";
+        elements.scanSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+}
+
+function updateWalletUI(autoScroll = false) {
     // Check if connected using the new helper
     if (isConnected()) {
         // Retrieve data from new local storage structure
@@ -75,6 +82,7 @@ function updateWalletUI() {
         elements.connectBtn.classList.add("danger-btn");
 
         if (elements.scanSection) elements.scanSection.style.display = "block";
+        if (autoScroll) scrollToScan();
     } else {
         console.log("❌ User Not Connected")
         if (elements.walletStatus) {
@@ -112,7 +120,8 @@ if (elements.connectBtn) {
                 },
                 onFinish: () => {
                     console.log("🔐 Auth finished");
-                    updateWalletUI();
+                    updateWalletUI(true);
+                    scrollToScan();
                 },
                 // No userSession needed here anymore
             });
