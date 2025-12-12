@@ -187,7 +187,7 @@ async function scanAura() {
         if (elements.descData) elements.descData.style.display = showDetails ? "block" : "none";
 
         elements.loading.style.display = "none";
-        elements.resultArea.style.display = "block";
+        elements.resultArea.style.display = "flex";
         if (elements.mintBtn) {
             if (totalTx === 0) {
                 elements.mintBtn.style.display = "none";
