@@ -180,6 +180,9 @@ async function scanAura() {
         }
         elements.txData.innerText = `Total On-Chain Transactions: ${totalTx}`;
         elements.descData.innerText = description;
+        const showDetails = totalTx !== 0;
+        if (elements.txData) elements.txData.style.display = showDetails ? "block" : "none";
+        if (elements.descData) elements.descData.style.display = showDetails ? "block" : "none";
 
         elements.loading.style.display = "none";
         elements.resultArea.style.display = "block";
@@ -201,6 +204,7 @@ async function scanAura() {
 
 async function fetchAddressTxCount(address) {
     const encoded = encodeURIComponent(address);
+    const isDev = import.meta.env?.DEV || location.hostname === "localhost" || location.hostname === "127.0.0.1";
 
     // 1) Try same-origin serverless proxy first (works on Vercel prod)
     try {
@@ -234,10 +238,16 @@ async function fetchAddressTxCount(address) {
             url: `https://blockstream.info/api/address/${encoded}`,
             parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
         },
-        {
-            url: `https://mempool.space/api/address/${encoded}`,
-            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
-        },
+        ...(isDev
+            ? [
+                  {
+                      url: `https://mempool.space/api/address/${encoded}`,
+                      parser: (j) =>
+                          (j.chain_stats?.tx_count || 0) +
+                          (j.mempool_stats?.tx_count || 0),
+                  },
+              ]
+            : []),
         {
             url: `https://api.blockcypher.com/v1/btc/main/addrs/${encoded}`,
             parser: (j) =>

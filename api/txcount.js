@@ -1,16 +1,18 @@
 // Vercel serverless function: /api/txcount?address=...
-// Fetches BTC address stats server-side to avoid client CORS/region blocks.
+// Fetch BTC address stats server-side to avoid client CORS/region blocks.
 
 const SOURCES = [
   {
     name: "mempool",
     url: (addr) => `https://mempool.space/api/address/${addr}`,
-    parse: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
+    parse: (j) =>
+      (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
   },
   {
     name: "blockstream",
     url: (addr) => `https://blockstream.info/api/address/${addr}`,
-    parse: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
+    parse: (j) =>
+      (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
   },
   {
     name: "blockcypher",
@@ -66,7 +68,10 @@ export default async function handler(req, res) {
         if (typeof totalTx !== "number" || Number.isNaN(totalTx)) {
           throw new Error("Invalid response");
         }
-        res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
+        res.setHeader(
+          "Cache-Control",
+          "s-maxage=30, stale-while-revalidate=120"
+        );
         res.status(200).json({ totalTx, source: source.name });
         return;
       } catch (err) {
@@ -74,7 +79,9 @@ export default async function handler(req, res) {
       }
     }
 
-    res.status(502).json({ error: "failed to fetch address data", details: lastErr?.message });
+    res
+      .status(502)
+      .json({ error: "failed to fetch address data", details: lastErr?.message });
   } catch (err) {
     res.status(500).json({ error: "internal error", details: err?.message });
   }
