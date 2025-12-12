@@ -133,9 +133,7 @@ async function scanAura() {
     elements.txStatus.textContent = "";
 
     try {
-        const data = await fetchAddressData(address);
-
-        const totalTx = data.chain_stats.tx_count + data.mempool_stats.tx_count;
+        const totalTx = await fetchAddressTxCount(address);
 
         let auraType = "";
         let imgFile = "";
@@ -189,38 +187,55 @@ async function scanAura() {
     }
 }
 
-async function fetchAddressData(address) {
+async function fetchAddressTxCount(address) {
     const encoded = encodeURIComponent(address);
     const controllers = [];
 
-    const attempt = async (url) => {
+    const attempt = async (entry) => {
         const controller = new AbortController();
         controllers.push(controller);
         const timer = setTimeout(() => controller.abort(), 8000);
         try {
-            const res = await fetch(url, { signal: controller.signal, mode: "cors" });
+            const res = await fetch(entry.url, { signal: controller.signal, mode: "cors" });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             clearTimeout(timer);
-            return json;
+            const total = entry.parser(json);
+            if (typeof total !== "number" || Number.isNaN(total)) {
+                throw new Error("Invalid response");
+            }
+            return total;
         } finally {
             clearTimeout(timer);
         }
     };
 
-    // Try mempool.space (mainnet), fallback to blockstream.info
-    const urls = [
-        `https://mempool.space/api/address/${encoded}`,
-        `https://blockstream.info/api/address/${encoded}`,
+    const sources = [
+        {
+            url: `https://mempool.space/api/address/${encoded}`,
+            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
+        },
+        {
+            url: `https://blockstream.info/api/address/${encoded}`,
+            parser: (j) => (j.chain_stats?.tx_count || 0) + (j.mempool_stats?.tx_count || 0),
+        },
+        {
+            url: `https://api.blockcypher.com/v1/btc/main/addrs/${encoded}`,
+            parser: (j) => (typeof j.n_tx === "number" ? j.n_tx : 0) + (typeof j.unconfirmed_n_tx === "number" ? j.unconfirmed_n_tx : 0),
+        },
+        {
+            url: `https://blockchain.info/rawaddr/${encoded}?cors=true`,
+            parser: (j) => (typeof j.n_tx === "number" ? j.n_tx : 0),
+        },
     ];
 
     let lastErr;
-    for (const url of urls) {
+    for (const entry of sources) {
         try {
-            return await attempt(url);
+            return await attempt(entry);
         } catch (err) {
             lastErr = err;
-            console.warn("Fetch failed on", url, err);
+            console.warn("Fetch failed on", entry.url, err);
         }
     }
     throw new Error(`Failed to fetch address data (${lastErr?.message || "unknown error"})`);
