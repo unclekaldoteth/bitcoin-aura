@@ -144,7 +144,13 @@ async function scanAura() {
         let description = "";
         let color = "";
 
-        if (totalTx >= 50) {
+        if (totalTx === 0) {
+            auraType = "BUY YOUR FIRST BTC";
+            imgFile = "https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/collection2.png";
+            description = "You have no on-chain activity yet. Start with your first Bitcoin transaction.";
+            color = "#f7931a";
+            currentMetadataUri = METADATA_URLS.stone;
+        } else if (totalTx >= 50) {
             auraType = "FIRE TRADER";
             imgFile = IMAGE_URLS.fire;
             description = "🔥 You are hyperactive! Gas fees are not a problem for you.";
