@@ -192,7 +192,7 @@ This project is licensed under the ISC License.
 
 - **Live App:** [bitcoin-aura.vercel.app](https://bitcoin-aura.vercel.app)
 - **Contract Explorer:** [View on Hiro](https://explorer.hiro.so/address/SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T.aura-nft-v3?chain=mainnet)
-- **Twitter:** [@unclekaldoteth](https://twitter.com/unclekaldoteth)
+- **Twitter:** [@fabiokalandra](https://twitter.com/fabiokalandra)
 
 ---
 
