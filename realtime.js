@@ -6,6 +6,20 @@
  */
 class RealtimeClient {
     constructor(serverUrl = null) {
+        // Detect if running on Vercel or other serverless platforms (no WebSocket support)
+        const isServerless = window.location.hostname.includes('vercel.app') ||
+            window.location.hostname.includes('netlify.app') ||
+            window.location.hostname.includes('pages.dev');
+
+        // WebSocket is only available in local development with the server running
+        this.isAvailable = !isServerless;
+
+        if (!this.isAvailable) {
+            console.log('[Realtime] WebSocket disabled in production (serverless environment)');
+            this.serverUrl = null;
+            return; // Skip WebSocket setup in serverless environments
+        }
+
         // Auto-detect server URL based on environment
         if (!serverUrl) {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -43,6 +57,10 @@ class RealtimeClient {
      * Connect to the WebSocket server
      */
     connect() {
+        if (!this.isAvailable) {
+            return; // Don't attempt connection in serverless environments
+        }
+
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             console.log('[Realtime] Already connected');
             return;

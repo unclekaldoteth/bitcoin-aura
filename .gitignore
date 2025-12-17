@@ -13,3 +13,4 @@ costs-reports.json
 node_modules
 .vercel
 .env
+.env*.local
