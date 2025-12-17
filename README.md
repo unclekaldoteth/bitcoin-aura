@@ -156,7 +156,6 @@ bitcoin-aura/
 │   ├── index.js            # Express + WebSocket server
 │   ├── predicates.js       # Chainhook predicates
 │   └── subscriptions.js    # Subscription management
-├── img/                    # NFT images
 ├── index.html              # Main HTML file
 ├── main.js                 # Application logic
 ├── realtime.js             # WebSocket client
