@@ -6,9 +6,6 @@
 [![Stacks](https://img.shields.io/badge/Stacks-Mainnet-purple)](https://explorer.hiro.so/address/SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T.aura-nft-v3?chain=mainnet)
 [![License](https://img.shields.io/badge/license-ISC-blue)](LICENSE)
 
----
-
-![Bitcoin Aura Preview](img/collection2.png)
 
 ## ✨ What is Bitcoin Aura?
 
