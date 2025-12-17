@@ -10,11 +10,14 @@ import {
 import { STACKS_MAINNET } from '@stacks/network';
 import { stringAsciiCV, PostConditionMode } from '@stacks/transactions';
 
+// Real-time updates via Chainhook
+import { realtimeClient } from './realtime.js';
+
 console.log("🚀 System initializing...");
 
 // --- CONFIGURATION ---
-const CONTRACT_ADDRESS = "SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T"; 
-const CONTRACT_NAME = "aura-nft";
+const CONTRACT_ADDRESS = "SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T";
+const CONTRACT_NAME = "aura-nft-v3";  // V3 with BTC address linking
 
 const IMAGE_URLS = {
     fire: "https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/fire.png",
@@ -31,6 +34,9 @@ const METADATA_URLS = {
 const network = STACKS_MAINNET;
 let currentAuraType = null;
 let currentMetadataUri = null;
+let ownedTokenId = null;      // Token ID if this BTC address has an NFT
+let currentNftAura = null;    // Current aura of the NFT
+let nftOwner = null;          // Stacks address that owns the NFT for this BTC address
 
 // --- DOM ELEMENTS ---
 const elements = {
@@ -49,6 +55,10 @@ const elements = {
     txData: document.getElementById("txData"),
     descData: document.getElementById("descData"),
     mintBtn: document.getElementById("mintBtn"),
+    updateBtn: document.getElementById("updateBtn"),
+    nftStatus: document.getElementById("nftStatus"),
+    ownedTokenId: document.getElementById("ownedTokenId"),
+    currentAuraLabel: document.getElementById("currentAuraLabel"),
     txStatus: document.getElementById("txStatus"),
 };
 
@@ -66,7 +76,7 @@ function updateWalletUI(autoScroll = false) {
         // Retrieve data from new local storage structure
         const userData = getLocalStorage();
         // Access address (v8 structure: addresses.stx[0].address)
-        const address = userData.addresses.stx[0].address; 
+        const address = userData.addresses.stx[0].address;
 
         console.log("✅ User Connected:", address);
 
@@ -79,7 +89,8 @@ function updateWalletUI(autoScroll = false) {
             elements.statusChip.style.display = "none";
         }
         elements.connectBtn.textContent = "Disconnect";
-        elements.connectBtn.classList.add("danger-btn");
+        elements.connectBtn.classList.remove("btn-primary");
+        elements.connectBtn.classList.add("btn-danger");
 
         if (elements.scanSection) elements.scanSection.style.display = "block";
         if (autoScroll) scrollToScan();
@@ -93,12 +104,13 @@ function updateWalletUI(autoScroll = false) {
         if (elements.statusChip) {
             elements.statusChip.style.display = "inline-block";
         }
-        elements.connectBtn.textContent = "Connect Stacks Wallet";
-        elements.connectBtn.classList.remove("danger-btn");
+        elements.connectBtn.textContent = "Connect Wallet";
+        elements.connectBtn.classList.remove("btn-danger");
+        elements.connectBtn.classList.add("btn-primary");
         if (elements.mintBtn) {
             elements.mintBtn.disabled = true;
         }
-        
+
         if (elements.scanSection) elements.scanSection.style.display = "none";
         if (elements.resultArea) elements.resultArea.style.display = "none";
     }
@@ -202,14 +214,35 @@ async function scanAura() {
 
         elements.loading.style.display = "none";
         elements.resultArea.style.display = "flex";
-        if (elements.mintBtn) {
-            if (totalTx === 0) {
-                elements.mintBtn.style.display = "none";
+
+        // V3: Check if this BTC address already has a minted NFT FIRST
+        // (No wallet connection required for lookup - we query by BTC address)
+        if (totalTx > 0) {
+            console.log("🔍 Checking if BTC address has minted NFT...");
+            await checkNftOwnership();
+            console.log(`🔍 Owned Token ID: ${ownedTokenId}, Current NFT Aura: ${currentNftAura}, New Aura: ${currentAuraType}`);
+
+            // Now decide on button visibility based on NFT status
+            if (ownedTokenId) {
+                // This BTC address already has an NFT - hide mint, show status
+                console.log("🚫 BTC address already minted - hiding MINT button");
+                if (elements.mintBtn) elements.mintBtn.style.display = "none";
+                updateButtonVisibility();
             } else {
-                elements.mintBtn.style.display = "block";
-                elements.mintBtn.disabled = false;
-                elements.mintBtn.textContent = "MINT TO STACKS";
+                // No NFT for this BTC address - show mint button
+                console.log("✅ BTC address not minted yet - showing MINT button");
+                if (elements.mintBtn) {
+                    elements.mintBtn.style.display = "block";
+                    elements.mintBtn.disabled = false;
+                    elements.mintBtn.textContent = "🚀 MINT TO STACKS";
+                }
+                if (elements.nftStatus) elements.nftStatus.style.display = "none";
+                if (elements.updateBtn) elements.updateBtn.style.display = "none";
             }
+        } else {
+            // No transactions - can't mint
+            console.log("⚠️ Skipping NFT check - totalTx is 0");
+            if (elements.mintBtn) elements.mintBtn.style.display = "none";
         }
     } catch (error) {
         console.error(error);
@@ -262,13 +295,13 @@ async function fetchAddressTxCount(address) {
         },
         ...(isDev
             ? [
-                  {
-                      url: `https://mempool.space/api/address/${encoded}`,
-                      parser: (j) =>
-                          (j.chain_stats?.tx_count || 0) +
-                          (j.mempool_stats?.tx_count || 0),
-                  },
-              ]
+                {
+                    url: `https://mempool.space/api/address/${encoded}`,
+                    parser: (j) =>
+                        (j.chain_stats?.tx_count || 0) +
+                        (j.mempool_stats?.tx_count || 0),
+                },
+            ]
             : []),
     ];
 
@@ -316,7 +349,16 @@ async function mintNFT() {
     elements.txStatus.textContent = "Preparing transaction...";
     elements.txStatus.style.color = "yellow";
 
+    // V3: Get the scanned BTC address to link with the NFT
+    const scannedBtcAddress = elements.btcAddress?.value?.trim();
+    if (!scannedBtcAddress) {
+        alert("No Bitcoin address scanned!");
+        return;
+    }
+
+    // V3 mint function: mint(btc-addr, aura-type, metadata-uri)
     const functionArgs = [
+        stringAsciiCV(scannedBtcAddress),
         stringAsciiCV(currentAuraType),
         stringAsciiCV(currentMetadataUri),
     ];
@@ -354,6 +396,340 @@ if (elements.mintBtn) {
     elements.mintBtn.addEventListener("click", mintNFT);
 }
 
+// --- CHECK NFT BY BITCOIN ADDRESS ---
+// V3: Query contract's get-token-by-btc to find if this BTC address has a minted NFT
+async function checkNftOwnership() {
+    const scannedBtcAddress = elements.btcAddress?.value?.trim();
+
+    if (!scannedBtcAddress) {
+        ownedTokenId = null;
+        currentNftAura = null;
+        return;
+    }
+
+    try {
+        console.log(`[NFT Check V3] Looking up token for BTC address: ${scannedBtcAddress}`);
+
+        // Call contract's get-token-by-btc read-only function
+        const apiUrl = `https://api.hiro.so/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/get-token-by-btc`;
+
+        // Manually encode string-ascii for the API
+        // Format: 0x0d (string-ascii type) + 4-byte length (big-endian) + ASCII bytes
+        const btcAddrBytes = new TextEncoder().encode(scannedBtcAddress);
+        const lengthHex = btcAddrBytes.length.toString(16).padStart(8, '0');
+        let btcAddrHex = '';
+        for (const byte of btcAddrBytes) {
+            btcAddrHex += byte.toString(16).padStart(2, '0');
+        }
+        const encodedArg = `0x0d${lengthHex}${btcAddrHex}`;
+
+        console.log(`[NFT Check V3] Encoded arg: ${encodedArg}`);
+
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                sender: CONTRACT_ADDRESS,
+                arguments: [encodedArg]
+            })
+        });
+
+        if (!response.ok) {
+            console.warn("[NFT Check V3] API error:", response.status);
+            ownedTokenId = null;
+            currentNftAura = null;
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.okay && data.result) {
+            // Parse the result: (ok (some uint)) or (ok none)
+            const hex = data.result;
+
+            // Check if it's (ok (some uint)) - starts with 0x070a01
+            // 0x07 = ok, 0x0a = some, 0x01 = uint
+            if (hex.startsWith('0x070a01')) {
+                // Extract the uint value (16 bytes after the prefix)
+                const tokenIdHex = hex.slice(8, 40); // After 0x070a01
+                ownedTokenId = parseInt(tokenIdHex, 16);
+
+                console.log(`[NFT Check V3] Found token #${ownedTokenId} for this BTC address!`);
+
+                // Fetch current aura and owner for this token
+                await fetchCurrentAura(ownedTokenId);
+                await fetchNftOwner(ownedTokenId);
+            } else {
+                // (ok none) - no token for this BTC address
+                console.log("[NFT Check V3] No NFT exists for this BTC address");
+                ownedTokenId = null;
+                currentNftAura = null;
+                nftOwner = null;
+            }
+        }
+    } catch (error) {
+        console.error("[NFT Check V3] Error:", error);
+        ownedTokenId = null;
+        currentNftAura = null;
+        nftOwner = null;
+    }
+}
+
+// Fetch current aura from contract
+async function fetchCurrentAura(tokenId) {
+    try {
+        const apiUrl = `https://api.hiro.so/v2/contracts/call-read/${CONTRACT_ADDRESS}/${CONTRACT_NAME}/get-aura`;
+
+        // Properly encode uint as Clarity value (16 bytes, big endian)
+        const hexTokenId = tokenId.toString(16).padStart(32, '0');
+        const uintCV = `0x01${hexTokenId}`; // 0x01 = uint type prefix
+
+        console.log(`[Aura Fetch] Fetching aura for token #${tokenId}`);
+
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                sender: CONTRACT_ADDRESS,
+                arguments: [uintCV]
+            })
+        });
+
+        if (!response.ok) {
+            console.warn("[Aura Fetch] API error:", response.status);
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.okay && data.result) {
+            // Decode hex Clarity value to string
+            // Format: 0x07 (ok) + 0x0a (some) + 0x0d (string-ascii) + length (4 bytes) + string bytes
+            // Or: 0x07 (ok) + 0x09 (none) for no result
+            const hex = data.result;
+
+            // Check if it's (ok (some "string"))
+            if (hex.startsWith('0x070a0d')) {
+                // Extract string length (4 bytes after 0x070a0d)
+                const lengthHex = hex.slice(8, 16);
+                const length = parseInt(lengthHex, 16);
+
+                // Extract the actual string bytes
+                const stringHex = hex.slice(16, 16 + length * 2);
+
+                // Convert hex to ASCII string
+                let auraString = '';
+                for (let i = 0; i < stringHex.length; i += 2) {
+                    auraString += String.fromCharCode(parseInt(stringHex.substr(i, 2), 16));
+                }
+
+                currentNftAura = auraString;
+                console.log(`[Aura Fetch] Current aura: "${currentNftAura}"`);
+            } else {
+                console.log("[Aura Fetch] No aura found (none)");
+                currentNftAura = null;
+            }
+        }
+    } catch (error) {
+        console.error("[Aura Fetch] Error:", error);
+    }
+}
+
+// Fetch the owner of a token using Hiro NFT API (returns readable address)
+async function fetchNftOwner(tokenId) {
+    try {
+        // Use Hiro's NFT history API to find the current holder
+        const tokenHex = `0x01${tokenId.toString(16).padStart(32, '0')}`;
+        const apiUrl = `https://api.hiro.so/extended/v1/tokens/nft/history?asset_identifier=${CONTRACT_ADDRESS}.${CONTRACT_NAME}::bitcoin-aura-v3&value=${encodeURIComponent(tokenHex)}`;
+
+        console.log(`[Owner Fetch] Fetching owner for token #${tokenId}`);
+
+        const response = await fetch(apiUrl, {
+            headers: { "Accept": "application/json" }
+        });
+
+        if (!response.ok) {
+            console.warn("[Owner Fetch] API error:", response.status);
+            nftOwner = null;
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.results && data.results.length > 0) {
+            // Get the most recent event to find current owner
+            // For mints, recipient is the owner; for transfers, check recipient
+            const latestEvent = data.results[0];
+            nftOwner = latestEvent.recipient || null;
+            console.log(`[Owner Fetch] Token #${tokenId} owned by: ${nftOwner}`);
+        } else {
+            console.log("[Owner Fetch] No history found");
+            nftOwner = null;
+        }
+    } catch (error) {
+        console.error("[Owner Fetch] Error:", error);
+        nftOwner = null;
+    }
+}
+
+// Check if connected wallet is the NFT owner
+function isConnectedUserOwner() {
+    if (!isConnected() || !nftOwner) return false;
+
+    try {
+        const userData = getLocalStorage();
+        const userAddress = userData.addresses.stx[0].address;
+
+        const isOwner = userAddress === nftOwner;
+        console.log(`[Owner Check] Connected: ${userAddress}, Owner: ${nftOwner}, Match: ${isOwner}`);
+
+        return isOwner;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Update UI to show mint or update button
+function updateButtonVisibility() {
+    if (!elements.mintBtn || !elements.updateBtn) return;
+
+    console.log(`🎯 updateButtonVisibility called:`);
+    console.log(`   - ownedTokenId: ${ownedTokenId}`);
+    console.log(`   - currentNftAura: "${currentNftAura}"`);
+    console.log(`   - currentAuraType: "${currentAuraType}"`);
+    console.log(`   - nftOwner: ${nftOwner ? "exists" : "null"}`);
+
+    if (ownedTokenId && currentAuraType) {
+        // This BTC address already has an NFT minted
+
+        // Show NFT status
+        if (elements.nftStatus) {
+            elements.nftStatus.style.display = "block";
+            if (elements.ownedTokenId) elements.ownedTokenId.textContent = ownedTokenId;
+            if (elements.currentAuraLabel) elements.currentAuraLabel.textContent = currentNftAura || "Unknown";
+        }
+
+        // Hide mint button - this BTC address already has an NFT
+        elements.mintBtn.style.display = "none";
+
+        // Check if connected user is the owner
+        const userIsOwner = isConnectedUserOwner();
+
+        if (!isConnected()) {
+            // Not connected - prompt to connect
+            elements.updateBtn.style.display = "none";
+            if (elements.txStatus) {
+                elements.txStatus.innerHTML = `⚠️ This Bitcoin address already has an NFT.<br><small style="color: #a1a1aa;">Connect your wallet to update if you're the owner.</small>`;
+                elements.txStatus.style.color = "#fbbf24";
+            }
+        } else if (!userIsOwner) {
+            // Connected but NOT the owner - show "minted by another wallet" message
+            elements.updateBtn.style.display = "none";
+            if (elements.txStatus) {
+                elements.txStatus.innerHTML = `🔒 This Bitcoin address was minted by another wallet.<br><small style="color: #a1a1aa;">Owner: ${nftOwner ? nftOwner.slice(0, 12) + '...' : 'Unknown'}</small>`;
+                elements.txStatus.style.color = "#ef4444";
+            }
+        } else {
+            // Connected AND is the owner - check if aura needs update
+            const needsUpdate = currentNftAura && currentNftAura !== currentAuraType;
+
+            if (needsUpdate) {
+                // Show update button
+                elements.updateBtn.style.display = "block";
+                elements.updateBtn.textContent = `🔄 UPDATE TO ${currentAuraType}`;
+                if (elements.txStatus) {
+                    elements.txStatus.innerHTML = `<small style="color: #a1a1aa;">You own this NFT. Click to update your aura.</small>`;
+                    elements.txStatus.style.color = "#a1a1aa";
+                }
+            } else {
+                // Same aura - already up to date
+                elements.updateBtn.style.display = "none";
+                if (elements.txStatus) {
+                    elements.txStatus.textContent = "✨ Your NFT is already up to date!";
+                    elements.txStatus.style.color = "#10b981";
+                }
+            }
+        }
+    } else if (ownedTokenId) {
+        // BTC address has NFT but no new scan - just show status
+        if (elements.nftStatus) {
+            elements.nftStatus.style.display = "block";
+            if (elements.ownedTokenId) elements.ownedTokenId.textContent = ownedTokenId;
+            if (elements.currentAuraLabel) elements.currentAuraLabel.textContent = currentNftAura || "Unknown";
+        }
+        elements.mintBtn.style.display = "none";
+        elements.updateBtn.style.display = "none";
+    } else {
+        // No NFT exists for this BTC address - show mint button
+        if (elements.nftStatus) elements.nftStatus.style.display = "none";
+        elements.updateBtn.style.display = "none";
+        // mintBtn visibility handled by scanAura
+    }
+}
+
+// --- UPDATE AURA LOGIC ---
+// V3: update-aura(btc-addr, new-aura-type, new-metadata-uri)
+async function updateAura() {
+    const scannedBtcAddress = elements.btcAddress?.value?.trim();
+
+    if (!scannedBtcAddress) {
+        alert("No Bitcoin address to update!");
+        return;
+    }
+    if (!currentAuraType || !currentMetadataUri) {
+        alert("Scan your aura first!");
+        return;
+    }
+    if (!isConnected()) {
+        alert("Connect your wallet first!");
+        return;
+    }
+
+    elements.txStatus.textContent = "Preparing update transaction...";
+    elements.txStatus.style.color = "yellow";
+
+    // V3 update-aura function: update-aura(btc-addr, new-aura-type, new-metadata-uri)
+    const functionArgs = [
+        stringAsciiCV(scannedBtcAddress),
+        stringAsciiCV(currentAuraType),
+        stringAsciiCV(currentMetadataUri),
+    ];
+
+    try {
+        await openContractCall({
+            network,
+            contractAddress: CONTRACT_ADDRESS,
+            contractName: CONTRACT_NAME,
+            functionName: "update-aura",
+            functionArgs,
+            postConditionMode: PostConditionMode.Deny,
+            appDetails: {
+                name: "Bitcoin Aura",
+                icon: window.location.origin + "/img/collection2.png",
+            },
+            onFinish: (data) => {
+                const explorerUrl = `https://explorer.hiro.so/txid/${data.txId}?chain=mainnet`;
+                elements.txStatus.innerHTML = `✅ Aura Updated! <a href="${explorerUrl}" target="_blank" style="color: #45b5ff;">View Transaction</a>`;
+                elements.txStatus.style.color = "#9ae6b4";
+                // Update local state
+                currentNftAura = currentAuraType;
+                updateButtonVisibility();
+            },
+            onCancel: () => {
+                elements.txStatus.textContent = "Update cancelled.";
+                elements.txStatus.style.color = "orange";
+            },
+        });
+    } catch (error) {
+        elements.txStatus.textContent = `Update failed: ${error.message}`;
+        elements.txStatus.style.color = "red";
+    }
+}
+
+if (elements.updateBtn) {
+    elements.updateBtn.addEventListener("click", updateAura);
+}
+
 // Repurpose connect button for disconnect too
 if (elements.connectBtn) {
     elements.connectBtn.addEventListener("click", () => {
@@ -379,3 +755,80 @@ updateWalletUI(alreadyConnected);
 window.addEventListener("focus", () => {
     if (isConnected()) updateWalletUI(true);
 });
+
+// ============================================
+// REAL-TIME UPDATES INTEGRATION
+// ============================================
+
+// Set up realtime event handlers
+realtimeClient.onConnect = (sessionId) => {
+    console.log("🔗 Connected to real-time server:", sessionId);
+};
+
+realtimeClient.onDisconnect = () => {
+    console.log("📡 Disconnected from real-time server");
+};
+
+realtimeClient.onAuraChanged = (data) => {
+    console.log("🔮 Aura changed!", data);
+    // Update the UI if the address matches current scan
+    const currentAddress = elements.btcAddress?.value?.trim();
+    if (currentAddress && data.btcAddress === currentAddress) {
+        // Trigger a rescan to update the display
+        scanAura();
+    }
+};
+
+realtimeClient.onNftMinted = (data) => {
+    console.log("✨ NFT minted!", data);
+    // If this is our mint, update the status
+    if (elements.txStatus) {
+        const explorerUrl = `https://explorer.hiro.so/txid/${data.txId}?chain=mainnet`;
+        elements.txStatus.innerHTML = `✅ Mint Confirmed! Token #${data.tokenId} <a href="${explorerUrl}" target="_blank" style="color: #45b5ff;">View on Explorer</a>`;
+        elements.txStatus.style.color = "#9ae6b4";
+    }
+};
+
+realtimeClient.onBtcTransaction = (data) => {
+    console.log("🔗 Bitcoin transaction detected:", data);
+};
+
+realtimeClient.onStats = (stats) => {
+    console.log("📊 Collection stats:", stats);
+};
+
+// Request notification permissions
+if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+}
+
+// Connect to realtime server (only in browser environment)
+if (typeof window !== 'undefined') {
+    // Attempt connection after a short delay to ensure DOM is ready
+    setTimeout(() => {
+        try {
+            realtimeClient.connect();
+        } catch (err) {
+            console.warn("Real-time connection failed:", err);
+        }
+    }, 1000);
+}
+
+// Subscribe to Bitcoin address updates when user scans
+const originalScanAura = scanAura;
+async function scanAuraWithSubscription() {
+    await originalScanAura();
+
+    // After successful scan, subscribe to real-time updates for this address
+    const address = elements.btcAddress?.value?.trim();
+    if (address && realtimeClient.connected) {
+        realtimeClient.subscribeBitcoin(address);
+        console.log("📡 Subscribed to real-time updates for:", address);
+    }
+}
+
+// Override scan button handler to include subscription
+if (elements.scanButton) {
+    elements.scanButton.removeEventListener("click", scanAura);
+    elements.scanButton.addEventListener("click", scanAuraWithSubscription);
+}

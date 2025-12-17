@@ -1,4 +1,5 @@
-;; File: contracts/aura-nft.clar
+;; File: contracts/aura-nft-v2.clar
+;; Bitcoin Aura NFT v2 - With Dynamic Aura Updates
 
 ;; Trait binding (SIP-009)
 (use-trait nft-trait .nft-trait.nft-trait)
@@ -7,7 +8,7 @@
 
 ;; --- STORAGE ---
 
-(define-non-fungible-token bitcoin-aura uint)
+(define-non-fungible-token bitcoin-aura-v2 uint)
 
 (define-data-var last-token-id uint u0)
 
@@ -40,7 +41,7 @@
     (try! (assert-mint-allowed))
     (let ((token-id (+ (var-get last-token-id) u1)))
       (begin
-        (try! (nft-mint? bitcoin-aura token-id tx-sender))
+        (try! (nft-mint? bitcoin-aura-v2 token-id tx-sender))
         (map-set aura-metadata token-id aura-type)
         (map-set token-uri token-id metadata-uri)
         (var-set last-token-id token-id)
@@ -63,13 +64,13 @@
 )
 
 (define-read-only (get-owner (token-id uint))
-    (ok (nft-get-owner? bitcoin-aura token-id))
+    (ok (nft-get-owner? bitcoin-aura-v2 token-id))
 )
 
 (define-public (transfer (token-id uint) (sender principal) (recipient principal))
     (begin
         (asserts! (is-eq tx-sender sender) (err u101))
-        (nft-transfer? bitcoin-aura token-id sender recipient)
+        (nft-transfer? bitcoin-aura-v2 token-id sender recipient)
     )
 )
 
@@ -105,7 +106,7 @@
 
 ;; Update aura type for an existing token (owner-only)
 (define-public (update-aura (token-id uint) (new-aura-type (string-ascii 20)) (new-metadata-uri (string-ascii 256)))
-  (let ((owner (unwrap! (nft-get-owner? bitcoin-aura token-id) (err u404))))
+  (let ((owner (unwrap! (nft-get-owner? bitcoin-aura-v2 token-id) (err u404))))
     (begin
       (asserts! (is-eq tx-sender owner) (err u403))
       (map-set aura-metadata token-id new-aura-type)

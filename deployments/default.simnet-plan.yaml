@@ -73,4 +73,14 @@ plan:
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/aura-nft.clar
             clarity-version: 4
+        - emulated-contract-publish:
+            contract-name: aura-nft-v2
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/aura-nft-v2.clar
+            clarity-version: 4
+        - emulated-contract-publish:
+            contract-name: aura-nft-v3
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/aura-nft-v3.clar
+            clarity-version: 4
       epoch: "3.3"

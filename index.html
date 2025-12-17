@@ -1,265 +1,519 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Aura Scanner</title>
+    <meta name="description"
+        content="Discover your Bitcoin Aura based on your on-chain transaction history. Mint unique NFTs on Stacks.">
     <link rel="icon" href="img/collection2.png">
+
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
     <style>
-        /* --- STYLES (CSS) --- */
+        /* --- MODERN STYLES --- */
+        :root {
+            --primary: #f7931a;
+            --primary-glow: rgba(247, 147, 26, 0.4);
+            --stacks-purple: #5546ff;
+            --stacks-purple-light: #8b5cf6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg-dark: #0a0a0f;
+            --bg-card: rgba(20, 20, 30, 0.8);
+            --bg-card-hover: rgba(30, 30, 45, 0.9);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(247, 147, 26, 0.3);
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #0f0f13; /* Dark terminal vibe */
-            color: #ffffff;
-            font-family: 'Courier New', Courier, monospace;
+            min-height: 100vh;
+            background: var(--bg-dark);
+            background-image:
+                radial-gradient(at 20% 30%, rgba(247, 147, 26, 0.08) 0%, transparent 50%),
+                radial-gradient(at 80% 70%, rgba(85, 70, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+            color: var(--text-primary);
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
             text-align: center;
-            padding: 50px;
+            padding: 40px 20px;
+        }
+
+        /* Main Container - Glassmorphism */
+        .container {
+            max-width: 520px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle);
+            padding: 40px 32px;
+            border-radius: 24px;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 20px 50px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* Header */
+        .header {
+            margin-bottom: 32px;
         }
 
         h1 {
-            color: #f7931a; /* Bitcoin orange */
-            text-shadow: 0 0 10px #f7931a;
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, #fbbf24 50%, var(--primary) 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s ease-in-out infinite;
+            letter-spacing: -0.02em;
         }
 
-        .container {
-            max-width: 760px;
-            margin: 0 auto;
-            border: 2px solid #333;
-            padding: 30px;
-            border-radius: 15px;
-            background: #1a1a1f;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
+        @keyframes shimmer {
+
+            0%,
+            100% {
+                background-position: 0% center;
+            }
+
+            50% {
+                background-position: 200% center;
+            }
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-top: 12px;
+            line-height: 1.6;
+        }
+
+        .wallet-badge {
+            display: inline-flex;
             align-items: center;
+            gap: 6px;
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: rgba(85, 70, 255, 0.15);
+            border: 1px solid rgba(85, 70, 255, 0.3);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            color: var(--stacks-purple-light);
         }
 
-        input {
+        .wallet-badge::before {
+            content: '✓';
+            font-size: 0.7rem;
+        }
+
+        /* Gacha Card */
+        .gacha-section {
+            margin: 28px 0;
+        }
+
+        .gacha-card {
+            position: relative;
+            background: linear-gradient(145deg, rgba(36, 36, 50, 0.6), rgba(27, 27, 36, 0.6));
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 20px;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .gacha-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 40%, rgba(247, 147, 26, 0.1) 100%);
+            pointer-events: none;
+        }
+
+        .gacha-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-glow);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 60px var(--primary-glow);
+        }
+
+        .gacha-card img {
             width: 100%;
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            background: #222;
-            color: white;
-            margin-bottom: 20px;
-            font-family: inherit;
-            box-sizing: border-box;
+            border-radius: 12px;
+            filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.4));
         }
 
+        .gacha-title {
+            margin-top: 16px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+
+        /* Input Styles */
+        input[type="text"] {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 0.95rem;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            color: var(--text-primary);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--text-muted);
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow), 0 0 20px var(--primary-glow);
+        }
+
+        /* Button Styles */
         button {
-            padding: 15px 30px;
-            font-size: 16px;
+            position: relative;
+            padding: 16px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
             cursor: pointer;
-            background: #5546ff; /* Stacks purple */
-            color: white;
             border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            transition: 0.3s;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
         }
 
-        button:hover {
-            background: #3e32a8;
-            box-shadow: 0 0 15px #5546ff;
+        .btn-primary {
+            background: linear-gradient(135deg, var(--stacks-purple) 0%, var(--stacks-purple-light) 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(85, 70, 255, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(85, 70, 255, 0.5);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-scan {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary) 0%, #fbbf24 100%);
+            color: #1a1a1a;
+            font-weight: 700;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        .btn-scan:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px var(--primary-glow);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, var(--stacks-purple) 0%, var(--stacks-purple-light) 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 30px rgba(239, 68, 68, 0.4);
         }
 
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-            box-shadow: none;
+            transform: none !important;
+            box-shadow: none !important;
         }
 
-        .danger-btn {
-            background: #d9534f;
-        }
-
-        .danger-btn:hover {
-            background: #c3423e;
-            box-shadow: 0 0 15px rgba(217, 83, 79, 0.6);
-        }
-
-        #result-area {
-            margin-top: 30px;
-            display: none; /* Hidden before scan */
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            width: 100%;
-            text-align: center;
-        }
-
-        .card-img {
-            display: block;
-            width: min(90%, 420px);
-            height: auto;
-            margin: 0 auto;
-            border-radius: 10px;
-            border: 4px solid white;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-        }
-
-        #mintBtn {
-            display: block;
-            margin: 22px auto 0;
-            width: min(90%, 360px);
-        }
-
-        .stats {
-            margin-top: 15px;
-            color: #aaa;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        #loading {
-            display: none;
-            color: #f7931a;
-            font-weight: bold;
-        }
-
+        /* Wallet Box */
         .wallet-box {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            background: #15151a;
-            border: 1px solid #2d2d35;
-            border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 18px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-top: 24px;
         }
 
         .status-chip {
             display: inline-block;
             padding: 6px 12px;
-            border-radius: 999px;
-            background: #2d2d35;
-            color: #f7931a;
-            font-size: 12px;
-            letter-spacing: 0.5px;
+            border-radius: 100px;
+            background: rgba(85, 70, 255, 0.2);
+            border: 1px solid rgba(85, 70, 255, 0.3);
+            color: var(--stacks-purple-light);
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
         }
 
         .wallet-status {
-            color: #9ae6b4;
-            font-size: 14px;
-            margin-top: 6px;
-            text-align: center;
-            word-break: break-all;
-        }
-
-        .tx-status {
-            margin-top: 12px;
-            color: #f2f2f2;
-            min-height: 20px;
-        }
-
-        .tx-status a {
-            color: #45b5ff;
-        }
-
-        .note {
-            color: #888;
-            font-size: 12px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
             margin-top: 8px;
         }
 
-        .gacha-section {
-            margin: 24px 0 12px 0;
+        .wallet-status.connected {
+            color: var(--success);
         }
 
-        .gacha-card {
-            position: relative;
-            margin: 0 auto;
-            max-width: 380px;
-            background: linear-gradient(145deg, #242432, #1b1b24);
-            border: 1px solid #2f2f3a;
-            border-radius: 14px;
-            padding: 16px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-        }
-
-        .gacha-card img {
-            width: 100%;
-            border-radius: 10px;
-            filter: drop-shadow(0 8px 24px rgba(0,0,0,0.35));
-        }
-
-        .gacha-title {
-            margin-top: 12px;
-            font-size: 16px;
-            letter-spacing: 0.5px;
-            color: #d5d5d5;
-        }
-
+        /* Scan Section */
         #scanSection {
             display: none;
+            margin-top: 28px;
         }
 
-        @media (max-width: 640px) {
+        #scanSection input {
+            margin-bottom: 16px;
+        }
+
+        /* Loading */
+        #loading {
+            display: none;
+            padding: 20px;
+            color: var(--primary);
+            font-weight: 500;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Result Area */
+        #result-area {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            margin-top: 32px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #auraTitle {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            text-shadow: 0 0 40px currentColor;
+        }
+
+        .card-img {
+            width: 100%;
+            max-width: 360px;
+            border-radius: 16px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease;
+        }
+
+        .card-img:hover {
+            transform: scale(1.02);
+        }
+
+        .stats {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+
+        /* NFT Status Box */
+        #nftStatus {
+            display: none;
+            background: rgba(85, 70, 255, 0.1);
+            border: 1px solid rgba(85, 70, 255, 0.3);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        #nftStatus p {
+            margin: 0;
+        }
+
+        #nftStatus .token-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        #nftStatus .aura-label {
+            color: var(--primary);
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        /* Action Buttons */
+        #mintBtn {
+            width: 100%;
+            max-width: 320px;
+            margin-top: 20px;
+        }
+
+        #updateBtn {
+            display: none;
+            width: 100%;
+            max-width: 320px;
+            margin-top: 12px;
+        }
+
+        .tx-status {
+            margin-top: 16px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            min-height: 24px;
+        }
+
+        .tx-status a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .tx-status a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 540px) {
             body {
-                padding: 16px;
+                padding: 20px 16px;
             }
+
             .container {
-                padding: 20px;
+                padding: 28px 20px;
             }
+
+            h1 {
+                font-size: 2rem;
+            }
+
             .wallet-box {
                 flex-direction: column;
-                align-items: stretch;
+                text-align: center;
             }
-            button,
-            input,
-            #btcAddress {
+
+            .wallet-box button {
                 width: 100%;
-            }
-            .gacha-card {
-                max-width: 100%;
             }
         }
     </style>
 </head>
+
 <body>
 
     <div class="container">
-        <h1>🔮 BITCOIN AURA</h1>
-        <p>Check your on-chain identity from your transaction history. Only Stacks wallets (Leather) are supported.</p>
+        <header class="header">
+            <h1>🔮 BITCOIN AURA</h1>
+            <p class="subtitle">Discover your on-chain identity based on your Bitcoin transaction history</p>
+            <span class="wallet-badge">All Stacks wallets supported</span>
+        </header>
 
         <div class="gacha-section">
             <div class="gacha-card">
-                <img id="heroImage" src="https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/collection2.png" alt="Collection pack">
+                <img id="heroImage"
+                    src="https://esolvhnpvfoavgycrwgy.supabase.co/storage/v1/object/public/bitcoin-aura/images/collection2.png"
+                    alt="Collection pack">
             </div>
             <p id="heroCaption" class="gacha-title">Bitcoin Aura Collection Pack</p>
         </div>
 
-        <div id="scanSection" class="gacha-section">
+        <div id="scanSection">
             <input type="text" id="btcAddress" placeholder="Paste Bitcoin address (bc1...)" />
-            <br>
-            <button id="scanButton">SCAN MY AURA</button>
+            <button id="scanButton" class="btn-scan">⚡ SCAN MY AURA</button>
         </div>
 
         <div class="wallet-box">
             <div>
-                <span class="status-chip">Stacks Mainnet (Leather)</span>
-                <p id="walletStatus" class="wallet-status">Wallet not connected.</p>
+                <span class="status-chip">Stacks Mainnet</span>
+                <p id="walletStatus" class="wallet-status">Wallet not connected</p>
             </div>
-            <button id="connectWalletBtn">Connect Stacks Wallet</button>
+            <button id="connectWalletBtn" class="btn-primary">Connect Wallet</button>
         </div>
 
-        <p id="loading">🕵️ Pinging the Bitcoin satellites...</p>
+        <p id="loading">🕵️ Scanning the Bitcoin blockchain...</p>
 
         <div id="result-area">
             <h2 id="auraTitle">FIRE TRADER</h2>
             <img src="" id="cardImage" class="card-img" alt="Aura Card">
-            
+
             <div class="stats">
                 <p id="txData">Total Transactions: 0</p>
                 <p id="descData">Traits: ...</p>
             </div>
 
-            <br>
-            <button id="mintBtn" style="background-color: #28a745;">MINT TO STACKS</button>
+            <div id="nftStatus">
+                <p class="token-label">You own NFT #<span id="ownedTokenId">-</span></p>
+                <p class="aura-label">Current Aura: <span id="currentAuraLabel">-</span></p>
+            </div>
+
+            <button id="mintBtn" class="btn-success">🚀 MINT TO STACKS</button>
+            <button id="updateBtn" class="btn-update">🔄 UPDATE MY AURA</button>
             <p id="txStatus" class="tx-status"></p>
         </div>
     </div>
 
     <script type="module" src="./main.js"></script>
 </body>
+
 </html>

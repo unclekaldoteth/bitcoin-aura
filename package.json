@@ -7,11 +7,14 @@
   "scripts": {
     "dev": "vite --host --port 3000",
     "build": "vite build",
-    "preview": "vite preview --host --port 4173"
+    "preview": "vite preview --host --port 4173",
+    "server": "node server/index.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\""
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@hirosystems/chainhook-client": "^2.4.0",
     "@stacks/clarinet-sdk": "^3.9.0",
     "@stacks/connect": "^8.2.3",
     "@stacks/encryption": "^7.3.0",
@@ -19,8 +22,11 @@
     "@stacks/transactions": "^7.3.0",
     "@types/node": "^24.4.0",
     "chokidar-cli": "^3.0.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "vitest": "^4.0.7",
-    "vitest-environment-clarinet": "^3.0.0"
+    "vitest-environment-clarinet": "^3.0.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "vite": "^7.2.6"

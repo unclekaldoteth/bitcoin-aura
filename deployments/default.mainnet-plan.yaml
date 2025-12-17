@@ -11,15 +11,22 @@ plan:
         - contract-publish:
             contract-name: nft-trait
             expected-sender: SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T
-            cost: 4160
+            cost: 751171
             path: contracts/nft-trait.clar
             anchor-block-only: true
             clarity-version: 4
         - contract-publish:
             contract-name: aura-nft
             expected-sender: SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T
-            cost: 26510
+            cost: 751542
             path: contracts/aura-nft.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: aura-nft-v2
+            expected-sender: SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T
+            cost: 751573
+            path: contracts/aura-nft-v2.clar
             anchor-block-only: true
             clarity-version: 4
       epoch: "3.3"
