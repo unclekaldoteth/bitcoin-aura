@@ -299,6 +299,23 @@
             color: var(--success);
         }
 
+        .wallet-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-wc {
+            background: linear-gradient(135deg, #3b99fc 0%, #5b7cfa 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(59, 153, 252, 0.4);
+        }
+
+        .btn-wc:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 153, 252, 0.5);
+        }
+
         /* Scan Section */
         #scanSection {
             display: none;
@@ -488,7 +505,10 @@
                 <span class="status-chip">Stacks Mainnet</span>
                 <p id="walletStatus" class="wallet-status">Wallet not connected</p>
             </div>
-            <button id="connectWalletBtn" class="btn-primary">Connect Wallet</button>
+            <div class="wallet-buttons">
+                <button id="connectWalletBtn" class="btn-primary">🔗 Browser Wallet</button>
+                <button id="walletConnectBtn" class="btn-wc">📱 WalletConnect</button>
+            </div>
         </div>
 
         <p id="loading">🕵️ Scanning the Bitcoin blockchain...</p>

@@ -13,6 +13,16 @@ import { stringAsciiCV, PostConditionMode } from '@stacks/transactions';
 // Real-time updates via Chainhook
 import { realtimeClient } from './realtime.js';
 
+// WalletConnect integration
+import {
+    getWalletConnector,
+    connectWalletConnect,
+    disconnectWalletConnect,
+    isWalletConnectConnected,
+    getWalletConnectAddress,
+    callContractViaWalletConnect
+} from './walletconnect.js';
+
 console.log("🚀 System initializing...");
 
 // --- CONFIGURATION ---
@@ -37,6 +47,7 @@ let currentMetadataUri = null;
 let ownedTokenId = null;      // Token ID if this BTC address has an NFT
 let currentNftAura = null;    // Current aura of the NFT
 let nftOwner = null;          // Stacks address that owns the NFT for this BTC address
+let connectionMethod = null;  // 'stacks-connect' or 'walletconnect'
 
 // --- DOM ELEMENTS ---
 const elements = {
@@ -71,22 +82,36 @@ function scrollToScan() {
 }
 
 function updateWalletUI(autoScroll = false) {
-    // Check if connected using the new helper
-    if (isConnected()) {
-        // Retrieve data from new local storage structure
-        const userData = getLocalStorage();
-        // Access address (v8 structure: addresses.stx[0].address)
-        const address = userData.addresses.stx[0].address;
+    // Check if connected using either method
+    const stacksConnected = isConnected();
+    const wcConnected = isWalletConnectConnected();
+    const anyConnected = stacksConnected || wcConnected;
 
-        console.log("✅ User Connected:", address);
+    if (anyConnected) {
+        let address = null;
+
+        if (stacksConnected) {
+            // Retrieve data from @stacks/connect local storage
+            const userData = getLocalStorage();
+            address = userData.addresses.stx[0].address;
+            connectionMethod = 'stacks-connect';
+        } else if (wcConnected) {
+            // Get address from WalletConnect
+            address = getWalletConnectAddress();
+            connectionMethod = 'walletconnect';
+        }
+
+        console.log(`✅ User Connected (${connectionMethod}):`, address);
 
         if (elements.walletStatus) {
-            elements.walletStatus.textContent = "";
+            elements.walletStatus.textContent = `${address.slice(0, 8)}...${address.slice(-4)}`;
             elements.walletStatus.style.color = "#9ae6b4";
-            elements.walletStatus.style.display = "none";
+            elements.walletStatus.style.display = "block";
         }
         if (elements.statusChip) {
-            elements.statusChip.style.display = "none";
+            const method = connectionMethod === 'walletconnect' ? '📱 WalletConnect' : '🔗 Browser';
+            elements.statusChip.textContent = method;
+            elements.statusChip.style.display = "inline-block";
         }
         elements.connectBtn.textContent = "Disconnect";
         elements.connectBtn.classList.remove("btn-primary");
@@ -95,6 +120,7 @@ function updateWalletUI(autoScroll = false) {
         if (elements.scanSection) elements.scanSection.style.display = "block";
         if (autoScroll) scrollToScan();
     } else {
+        connectionMethod = null;
         console.log("❌ User Not Connected")
         if (elements.walletStatus) {
             elements.walletStatus.textContent = "Wallet not connected.";
@@ -102,6 +128,7 @@ function updateWalletUI(autoScroll = false) {
             elements.walletStatus.style.display = "block";
         }
         if (elements.statusChip) {
+            elements.statusChip.textContent = "Stacks Mainnet";
             elements.statusChip.style.display = "inline-block";
         }
         elements.connectBtn.textContent = "Connect Wallet";
@@ -118,11 +145,25 @@ function updateWalletUI(autoScroll = false) {
 
 async function handleConnectClick() {
     console.log("🖱️ Connect button clicked");
-    if (isConnected()) {
-        disconnect();
+
+    // Check if already connected via either method
+    const stacksConnected = isConnected();
+    const wcConnected = isWalletConnectConnected();
+
+    if (stacksConnected || wcConnected) {
+        // Disconnect from the appropriate provider
+        if (stacksConnected) {
+            disconnect();
+        }
+        if (wcConnected) {
+            await disconnectWalletConnect();
+        }
+        connectionMethod = null;
         updateWalletUI();
         return;
     }
+
+    // Use browser extension by default
     try {
         await connect({
             appDetails: {
@@ -131,19 +172,54 @@ async function handleConnectClick() {
             },
             redirectTo: window.location.href,
             onFinish: () => {
-                // Called when the wallet returns control (no manual refresh needed)
+                connectionMethod = 'stacks-connect';
                 updateWalletUI(true);
             },
         });
-        // Fallback in case onFinish does not fire on some wallets
+        connectionMethod = 'stacks-connect';
         updateWalletUI(true);
     } catch (err) {
         console.error("Connect failed", err);
     }
 }
 
+// WalletConnect connection handler
+async function handleWalletConnectClick() {
+    console.log("📱 WalletConnect button clicked");
+
+    // Check if already connected
+    if (isWalletConnectConnected() || isConnected()) {
+        // Disconnect first
+        if (isConnected()) disconnect();
+        if (isWalletConnectConnected()) await disconnectWalletConnect();
+        connectionMethod = null;
+        updateWalletUI();
+        return;
+    }
+
+    try {
+        const result = await connectWalletConnect();
+        if (result && result.address) {
+            connectionMethod = 'walletconnect';
+            updateWalletUI(true);
+        }
+    } catch (err) {
+        console.error("WalletConnect failed:", err);
+        if (elements.txStatus) {
+            elements.txStatus.textContent = "WalletConnect failed: " + err.message;
+            elements.txStatus.style.color = "orange";
+        }
+    }
+}
+
 if (elements.connectBtn) {
     elements.connectBtn.addEventListener("click", handleConnectClick);
+}
+
+// Add WalletConnect button handler if element exists
+const wcBtn = document.getElementById("walletConnectBtn");
+if (wcBtn) {
+    wcBtn.addEventListener("click", handleWalletConnectClick);
 }
 
 // --- SCAN AURA LOGIC (Unchanged) ---
@@ -574,11 +650,22 @@ async function fetchNftOwner(tokenId) {
 
 // Check if connected wallet is the NFT owner
 function isConnectedUserOwner() {
-    if (!isConnected() || !nftOwner) return false;
+    const stacksConnected = isConnected();
+    const wcConnected = isWalletConnectConnected();
+
+    if ((!stacksConnected && !wcConnected) || !nftOwner) return false;
 
     try {
-        const userData = getLocalStorage();
-        const userAddress = userData.addresses.stx[0].address;
+        let userAddress = null;
+
+        if (stacksConnected) {
+            const userData = getLocalStorage();
+            userAddress = userData.addresses.stx[0].address;
+        } else if (wcConnected) {
+            userAddress = getWalletConnectAddress();
+        }
+
+        if (!userAddress) return false;
 
         const isOwner = userAddress === nftOwner;
         console.log(`[Owner Check] Connected: ${userAddress}, Owner: ${nftOwner}, Match: ${isOwner}`);
@@ -615,7 +702,7 @@ function updateButtonVisibility() {
         // Check if connected user is the owner
         const userIsOwner = isConnectedUserOwner();
 
-        if (!isConnected()) {
+        if (!isConnected() && !isWalletConnectConnected()) {
             // Not connected - prompt to connect
             elements.updateBtn.style.display = "none";
             if (elements.txStatus) {
@@ -730,30 +817,40 @@ if (elements.updateBtn) {
     elements.updateBtn.addEventListener("click", updateAura);
 }
 
-// Repurpose connect button for disconnect too
-if (elements.connectBtn) {
-    elements.connectBtn.addEventListener("click", () => {
-        if (isConnected()) {
-            disconnect();
-            updateWalletUI();
-        } else {
-            connect({
-                appDetails: {
-                    name: "Bitcoin Aura",
-                    icon: window.location.origin + "/img/collection2.png",
-                },
-                onFinish: () => updateWalletUI(),
-            });
-        }
-    });
+// Repurpose connect button for disconnect too (this is a duplicate handler, remove it)
+// Note: handleConnectClick already handles this - this block is legacy code
+// Remove duplicate event listener to avoid double-binding
+
+// Initialize WalletConnect and UI
+async function initializeApp() {
+    // Try to initialize WalletConnect (may fail if no project ID)
+    try {
+        await getWalletConnector();
+        console.log("📱 WalletConnect ready");
+    } catch (err) {
+        console.warn("WalletConnect initialization skipped:", err.message);
+    }
+
+    // Check if already connected via either method
+    const stacksConnected = isConnected();
+    const wcConnected = isWalletConnectConnected();
+    const alreadyConnected = stacksConnected || wcConnected;
+
+    if (wcConnected) {
+        connectionMethod = 'walletconnect';
+    } else if (stacksConnected) {
+        connectionMethod = 'stacks-connect';
+    }
+
+    updateWalletUI(alreadyConnected);
 }
 
-// Initialize UI (auto-scroll if already connected, e.g., after wallet redirect)
-const alreadyConnected = isConnected();
-updateWalletUI(alreadyConnected);
+// Run initialization
+initializeApp();
+
 // If the user comes back from wallet and focus returns, re-evaluate connection state
 window.addEventListener("focus", () => {
-    if (isConnected()) updateWalletUI(true);
+    if (isConnected() || isWalletConnectConnected()) updateWalletUI(true);
 });
 
 // ============================================
