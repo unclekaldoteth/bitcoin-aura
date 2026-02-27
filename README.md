@@ -3,7 +3,7 @@
 **Discover your on-chain identity based on your Bitcoin transaction history**
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://bitcoin-aura.vercel.app)
-[![Stacks](https://img.shields.io/badge/Stacks-Mainnet-purple)](https://explorer.hiro.so/address/SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T.aura-nft-v3?chain=mainnet)
+[![Stacks](https://img.shields.io/badge/Stacks-Mainnet-purple)](https://explorer.hiro.so/address/SP1MTYHV6K2FNH3QNF4P5QXS9VJ3XZ0GBB5T1SJPK.aura-nft-v4?chain=mainnet)
 [![License](https://img.shields.io/badge/license-ISC-blue)](LICENSE)
 
 
@@ -87,16 +87,18 @@ STX_NETWORK=mainnet
 
 ## 📜 Smart Contract
 
-The Bitcoin Aura NFT contract (`aura-nft-v3`) is deployed on Stacks Mainnet:
+The Bitcoin Aura NFT contract (`aura-nft-v4`) is deployed on Stacks Mainnet:
 
-**Contract Address:** `SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T.aura-nft-v3`
+**Contract Address:** `SP1MTYHV6K2FNH3QNF4P5QXS9VJ3XZ0GBB5T1SJPK.aura-nft-v4`
 
 ### Key Features
 
 - **SIP-009 Compliant** - Standard NFT interface
+- **Clarity 4** - Deployed with Clarity version 4
 - **BTC Address Linking** - Each token stores the Bitcoin address it represents
 - **Reverse Lookup** - Query which token belongs to a given BTC address
 - **Dynamic Metadata** - Aura can be updated by the NFT owner
+- **Hardened Controls** - Owner-managed minter role, mint pause, and stricter input validation
 
 ### Read Functions
 
@@ -114,11 +116,21 @@ The Bitcoin Aura NFT contract (`aura-nft-v3`) is deployed on Stacks Mainnet:
 ### Write Functions
 
 ```clarity
-;; Mint new NFT (fails if BTC address already has one)
+;; Mint new NFT (fails if BTC address already has one; minter only)
 (mint (btc-addr (string-ascii 64)) (aura-type (string-ascii 20)) (metadata-uri (string-ascii 256)))
 
 ;; Update aura (owner only)
 (update-aura (btc-addr (string-ascii 64)) (new-aura (string-ascii 20)) (new-uri (string-ascii 256)))
+```
+
+### Admin Functions (Owner Only)
+
+```clarity
+;; Rotate minter principal
+(set-minter (new-minter principal))
+
+;; Pause/unpause minting
+(set-mint-paused (paused bool))
 ```
 
 ## 🌐 Deployment
@@ -150,7 +162,7 @@ bitcoin-aura/
 ├── api/                    # Vercel serverless functions
 │   └── txcount.js          # Bitcoin transaction count API
 ├── contracts/              # Clarity smart contracts
-│   ├── aura-nft-v3.clar    # Main NFT contract
+│   ├── aura-nft-v4.clar    # Main NFT contract
 │   └── nft-trait.clar      # SIP-009 trait
 ├── server/                 # Optional WebSocket server
 │   ├── index.js            # Express + WebSocket server
@@ -187,7 +199,7 @@ This project is licensed under the ISC License.
 ## 🔗 Links
 
 - **Live App:** [bitcoin-aura.vercel.app](https://bitcoin-aura.vercel.app)
-- **Contract Explorer:** [View on Hiro](https://explorer.hiro.so/address/SP1ZGGS886YCZHMFXJR1EK61ZP34FNWNSX32N685T.aura-nft-v3?chain=mainnet)
+- **Contract Explorer:** [View on Hiro](https://explorer.hiro.so/address/SP1MTYHV6K2FNH3QNF4P5QXS9VJ3XZ0GBB5T1SJPK.aura-nft-v4?chain=mainnet)
 - **Twitter:** [@fabiokalandra](https://twitter.com/fabiokalandra)
 
 ---
